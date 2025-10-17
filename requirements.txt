@@ -1,2 +1,3 @@
-pytelegrambotapi
-schedule
+flask==2.3.3
+pytelegrambotapi==4.29.1
+schedule==1.2.2
