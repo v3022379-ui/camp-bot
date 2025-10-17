@@ -1,2 +1,2 @@
-pytelegrambotapi==4.29.1
-schedule==1.2.2
+pytelegrambotapi
+schedule
