@@ -253,12 +253,31 @@ def send_to_all_squad_chats(message_text):
             print(f"⚠️ Нет ID для отряда {squad}")
 
 # Запуск бота
-if __name__ == "__main__":
-    try:
-        init_db()
-        print("🚀 Бот запущен на Render!")
-        bot.infinity_polling()
-    except Exception as e:
-        print(f"🚨 Критическая ошибка: {e}")
-        import traceback
-        print(traceback.format_exc())
+from flask import Flask
+import threading
+
+# Создаем простой веб-сервер для Render
+app = Flask('bot-server')
+
+@app.route('/')
+def home():
+    return "🤖 Бот для 6 отрядов работает!"
+
+@app.route('/health')
+def health():
+    return "OK"
+
+def run_web_server():
+    app.run(host='0.0.0.0', port=8080)
+
+if name == "__main__":
+    # Запускаем веб-сервер в отдельном потоке
+    web_thread = threading.Thread(target=run_web_server)
+    web_thread.daemon = True
+    web_thread.start()
+    print("🌐 Веб-сервер запущен на порту 8080")
+    
+    # Запускаем бота
+    init_db()
+    print("🚀 Бот для 6 отрядов запущен на Render!")
+    bot.infinity_polling()
