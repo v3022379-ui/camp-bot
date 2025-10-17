@@ -253,7 +253,8 @@ def send_to_all_squad_chats(message_text):
             print(f"⚠️ Нет ID для отряда {squad}")
 
 # Запуск бота
-if name == "__main__":
+if __name__ == "__main__":
     init_db()
     print("🚀 Бот для 6 отрядов запущен на Railway!")
+
     bot.infinity_polling()
