@@ -280,5 +280,13 @@ if __name__ == "__main__":
     # Запускаем бота
     init_db()
     print("🚀 Бот для 6 отрядов запущен на Render!")
-    bot.infinity_polling()
+import time
+
+while True:
+    try:
+        bot.infinity_polling()
+    except Exception as e:
+        print(f"Ошибка 409. Перезапуск через 10 секунд: {e}")
+        time.sleep(10)
+
 
