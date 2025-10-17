@@ -270,7 +270,7 @@ def health():
 def run_web_server():
     app.run(host='0.0.0.0', port=8080)
 
-if name == "__main__":
+if __name__ == "__main__":
     # Запускаем веб-сервер в отдельном потоке
     web_thread = threading.Thread(target=run_web_server)
     web_thread.daemon = True
@@ -281,3 +281,4 @@ if name == "__main__":
     init_db()
     print("🚀 Бот для 6 отрядов запущен на Render!")
     bot.infinity_polling()
+
