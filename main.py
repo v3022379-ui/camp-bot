@@ -8,8 +8,8 @@ import threading
 from datetime import datetime, timedelta
 
 # Конфигурация из переменных окружения Railway
-BOT_TOKEN = os.environ['8364795745:AAFua_2qWp8jp3jB70I3ZkAMCAB0NWIDFW0']
-ADMIN_ID = int(os.environ['1320734792'])
+BOT_TOKEN = os.environ['BOT_TOKEN']
+ADMIN_ID = int(os.environ['ADMIN_ID'])
 DATABASE_NAME = 'camp_bot.db'
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -254,7 +254,11 @@ def send_to_all_squad_chats(message_text):
 
 # Запуск бота
 if __name__ == "__main__":
-    init_db()
-    print("🚀 Бот для 6 отрядов запущен на Railway!")
-
-    bot.infinity_polling()
+    try:
+        init_db()
+        print("🚀 Бот запущен на Render!")
+        bot.infinity_polling()
+    except Exception as e:
+        print(f"🚨 Критическая ошибка: {e}")
+        import traceback
+        print(traceback.format_exc())
