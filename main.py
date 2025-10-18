@@ -6,6 +6,8 @@ import schedule
 import time
 import threading
 from datetime import datetime, timedelta
+import requests
+from datetime import datetime
 
 # Конфигурация из переменных окружения Railway
 BOT_TOKEN = os.environ['BOT_TOKEN']
@@ -267,7 +269,30 @@ def home():
 def health():
     return "OK"
 
+def keep_alive():
+    """Периодически отправляет запросы чтобы сервис не засыпал"""
+    while True:
+        try:
+            # ЗАМЕНИТЕ "your-service-name" на ваш реальный URL из Render
+            # Пример: если ваш URL "camp-bot-123.onrender.com", то строка будет:
+            # requests.get("https://camp-bot-123.onrender.com/")
+            requests.get("https://camp-bot-xna8.onrender.com")
+            print(f"🔄 Self-ping sent at {datetime.now()}")
+        except Exception as e:
+            print(f"⚠️ Self-ping failed: {e}")
+        
+        # Ждем 10 минут между запросами
+        time.sleep(600)
+        
 def run_web_server():
+    @app.route('/')
+    def home():
+        return f"🤖 Бот для 6 отрядов работает!<br>Последнее обновление: {datetime.now()}"
+    
+    @app.route('/health')
+    def health():
+        return "OK"
+    
     app.run(host='0.0.0.0', port=8080)
 
 def run_bot():
@@ -293,6 +318,12 @@ def run_bot():
             print("🔄 Перезапускаю бота...")
 
 if __name__== "__main__":
+    # Запускаем само-пинг в отдельном потоке
+    ping_thread = threading.Thread(target=keep_alive)
+    ping_thread.daemon = True
+    ping_thread.start()
+    print("🔁 Само-пинг запущен")
+
     # Запускаем веб-сервер в отдельном потоке
     web_thread = threading.Thread(target=run_web_server)
     web_thread.daemon = True
