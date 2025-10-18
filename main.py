@@ -282,7 +282,7 @@ def keep_alive():
             print(f"⚠️ Self-ping failed: {e}")
         
         # Ждем 10 минут между запросами
-        time.sleep(600)
+        time.sleep(1600)
         
 def run_web_server():
     @app.route('/')
@@ -332,3 +332,4 @@ if __name__== "__main__":
     
     # Запускаем бота с автоматическим восстановлением
     run_bot()
+
