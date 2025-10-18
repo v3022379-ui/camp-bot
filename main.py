@@ -220,7 +220,7 @@ def show_stats(message):
 # Вспомогательные функции
 def get_squad_chat_link(squad_number):
     links = {
-        1: "https://t.me/+mcWOgdDVjuIzNDYy",
+        1: "https://t.me/+GvuLyiyjLxBjMzQy",
         2: "https://t.me/+65crPBlnZQVlYTIy", 
         3: "https://t.me/+ZHyKA9ZX1FQ1MjY6",
         4: "https://t.me/+--6MKDxUXIRiNDI6",
@@ -231,7 +231,7 @@ def get_squad_chat_link(squad_number):
 
 def get_squad_chat_id(squad_number):
     squad_chats = {
-        1: -4764309202,
+        1: -4930338515,
         2: -4614231470,
         3: -4965369333,
         4: -4961778285,
@@ -332,5 +332,6 @@ if __name__== "__main__":
     
     # Запускаем бота с автоматическим восстановлением
     run_bot()
+
 
 
