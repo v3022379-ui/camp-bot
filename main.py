@@ -216,11 +216,36 @@ def show_stats(message):
     
     conn.close()
     bot.reply_to(message, report)
+    
+# Команда для сброса распределения по группам
+@bot.message_handler(commands=['reset_groups'])
+def reset_groups_command(message):
+    if message.from_user.id != ADMIN_ID:
+        bot.reply_to(message, "❌ Нет прав")
+        return
+    
+    try:
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        # Обнуляем группы у всех пользователей
+        cursor.execute("UPDATE users SET squad = NULL")
+        conn.commit()
+        conn.close()
+        
+        bot.reply_to(message, "✅ Распределение по группам полностью сброшено!\n\n"
+                             "Теперь в статистике будет показывать 0 человек.\n"
+                             "Можете заново запустить распределение!")
+        print("🔄 Группы сброшены администратором")
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка при сбросе групп: {e}")
+        print(f"🚨 Ошибка сброса групп: {e}")
 
 # Вспомогательные функции
 def get_squad_chat_link(squad_number):
     links = {
-        1: "https://t.me/+GvuLyiyjLxBjMzQy",
+        1: "https://t.me/+mcWOgdDVjuIzNDYy",
         2: "https://t.me/+65crPBlnZQVlYTIy", 
         3: "https://t.me/+ZHyKA9ZX1FQ1MjY6",
         4: "https://t.me/+--6MKDxUXIRiNDI6",
@@ -231,7 +256,7 @@ def get_squad_chat_link(squad_number):
 
 def get_squad_chat_id(squad_number):
     squad_chats = {
-        1: -4930338515,
+        1: -4764309202,
         2: -4614231470,
         3: -4965369333,
         4: -4961778285,
@@ -332,6 +357,7 @@ if __name__== "__main__":
     
     # Запускаем бота с автоматическим восстановлением
     run_bot()
+
 
 
 
