@@ -241,7 +241,260 @@ def reset_groups_command(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка при сбросе групп: {e}")
         print(f"🚨 Ошибка сброса групп: {e}")
+        
+# Команда для администратора - запуск Капсулы Времени
+@bot.message_handler(commands=['start_capsule'])
+def start_time_capsule(message):
+    if message.from_user.id != ADMIN_ID:
+        bot.reply_to(message, "У вас нет прав для выполнения этой команды.")
+        return
+    
+    # Получаем всех участников из базы
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id, full_name, squad FROM users WHERE squad IS NOT NULL')
+    users = cursor.fetchall()
+    conn.close()
+    
+    # Запускаем капсулу для каждого участника
+    for user_id, full_name, squad in users:
+        try:
+            # Запускаем в отдельном потоке с задержкой между пользователями
+            threading.Thread(
+                target=send_personal_capsule_questions, 
+                args=(user_id, full_name, squad)
+            ).start()
+            time.sleep(1)  # Задержка 1 секунда между пользователями
+        except Exception as e:
+            print(f"Ошибка запуска капсулы для {user_id}: {e}")
+    
+    bot.reply_to(message, f"✅ Капсула времени запущена для {len(users)} участников!")
 
+def send_personal_capsule_questions(user_id, full_name, squad):
+    """Отправляет вопросы капсулы в личные сообщения"""
+    
+    try:
+        # Приветственное сообщение
+        welcome_msg = (
+            f"Привет, {full_name}! 👋\n\n"
+            "Наша миссия подходит к концу. 🚀\n"
+            "Прежде чем разойтись, давай создадим Капсулу Времени — послание в будущее для тебя самого.\n\n"
+            "Я задам 3 вопроса. Ответь на них честно. Через неделю я пришлю эту капсулу тебе.\n\n"
+            "Это твоя личная память о нашем путешествии."
+        )
+        bot.send_message(user_id, welcome_msg)
+        time.sleep(2)
+        
+        # Вопрос 1
+        question1 = (
+            "📝 ВОПРОС ПЕРВЫЙ:\n\n"
+            "«Какой момент за эти 2 дня стал для тебя самым ярким?✨ Опиши в 2-3 предложениях.\n\n"
+            "Может, это была та дурацкая шутка, когда все валялись со смеху? Или тихий разговор с незнакомым человеком, который стал другом? Та секунда, когда вы поняли, что победили?»"
+        )
+        bot.send_message(user_id, question1)
+        
+        # Сохраняем состояние для отслеживания ответов
+        save_user_state(user_id, 'waiting_question_1')
+        
+    except Exception as e:
+        print(f"Не удалось отправить вопросы пользователю {user_id}: {e}")
+
+def save_user_state(user_id, state):
+    """Сохраняет состояние пользователя"""
+    user_states[user_id] = state
+
+def send_answer_to_admin(user_id, question, answer):
+    """Отправляет ответ администратору"""
+    try:
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        cursor.execute('SELECT full_name, squad FROM users WHERE user_id = ?', (user_id,))
+        user_info = cursor.fetchone()
+        conn.close()
+        
+        if user_info:
+            full_name, squad = user_info
+            admin_message = (
+                f"📨 Новый ответ на Капсулу Времени:\n"
+                f"👤 Участник: {full_name}\n"
+                f"🎯 Отряд: {squad}\n"
+                f"❓ Вопрос: {question}\n"
+                f"💬 Ответ: {answer}\n"
+                f"🕒 Время: {datetime.now().strftime('%H:%M %d.%m.%Y')}"
+            )
+            bot.send_message(ADMIN_ID, admin_message)
+    except Exception as e:
+        print(f"Не удалось отправить ответ администратору: {e}")
+
+def get_user_squad(user_id):
+    """Возвращает отряд пользователя"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT squad FROM users WHERE user_id = ?', (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+def save_capsule_answer(user_id, answer1, answer2, answer3):
+    """Сохраняет ответы в базу данных"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Получаем отряд пользователя
+    squad = get_user_squad(user_id)
+    
+    # Проверяем, есть ли уже запись для этого пользователя
+    cursor.execute('SELECT * FROM time_capsules WHERE user_id = ?', (user_id,))
+    existing = cursor.fetchone()
+    
+    if existing:
+        # Обновляем существующую запись
+        cursor.execute('''
+            UPDATE time_capsules 
+            SET question_1 = COALESCE(?, question_1),
+                question_2 = COALESCE(?, question_2), 
+                question_3 = COALESCE(?, question_3)
+            WHERE user_id = ?
+        ''', (answer1, answer2, answer3, user_id))
+    else:
+        # Создаем новую запись
+        cursor.execute('''
+            INSERT INTO time_capsules (user_id, squad, question_1, question_2, question_3)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, squad, answer1, answer2, answer3))
+    
+    conn.commit()
+    conn.close()
+
+# Обработчик для сохранения ответов на вопросы капсулы
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def handle_all_messages(message):
+    # Сначала проверяем, является ли сообщение ответом на капсулу времени
+    user_id = message.from_user.id
+    
+    if user_id in user_states:
+        state = user_states[user_id]
+        answer = message.text
+        
+        if state == 'waiting_question_1':
+            # Сохраняем ответ на вопрос 1
+            save_capsule_answer(user_id, answer, None, None)
+            save_user_state(user_id, 'waiting_question_2')
+            
+            # Задаем вопрос 2
+            question2 = (
+                "📝 ВОПРОС ВТОРОЙ:\n\n"
+                "«Что ты узнал о себе или о других за эти сумасшедшие 19 часов?⏰\n\n"
+                "Может, ты обнаружил, что можешь договориться с кем угодно? Или что самый тихий парень в отряде на самом деле — гений тактики? Или что усталость — это не конец, а начало?»"
+            )
+            bot.send_message(user_id, question2)
+            
+            # Отправляем ответ администратору
+            send_answer_to_admin(user_id, "Вопрос 1", answer)
+            
+        elif state == 'waiting_question_2':
+            # Сохраняем ответ на вопрос 2
+            save_capsule_answer(user_id, None, answer, None)
+            save_user_state(user_id, 'waiting_question_3')
+            
+            # Задаем вопрос 3
+            question3 = (
+                "📝 ВОПРОС ТРЕТИЙ:\n\n"
+                "«Какая одна черта/навык/мысль из этих сборов останется с тобой надолго?\n\n"
+                "Одно слово или фраза. Например: «смелость первым заговорить», «доверять команде» или просто «кайфовать от процесса»."
+            )
+            bot.send_message(user_id, question3)
+            
+            # Отправляем ответ администратору
+            send_answer_to_admin(user_id, "Вопрос 2", answer)
+            
+        elif state == 'waiting_question_3':
+            # Сохраняем ответ на вопрос 3
+            save_capsule_answer(user_id, None, None, answer)
+            
+            # Завершаем диалог
+            bot.send_message(
+                user_id, 
+                "✅ Спасибо! Твои ответы сохранены. Через неделю ты получишь Капсулу Времени с твоими мыслями! ✨"
+            )
+            
+            # Удаляем состояние
+            del user_states[user_id]
+            
+            # Отправляем ответ администратору
+            send_answer_to_admin(user_id, "Вопрос 3", answer)
+    
+    else:
+        # Если это не ответ на капсулу, игнорируем сообщение
+        # чтобы другие обработчики (команды) могли работать
+        pass
+
+# Функция для отправки капсул через неделю
+def send_time_capsules():
+    """Отправляет капсулы времени через неделю после создания"""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Находим капсулы, созданные неделю назад
+    week_ago = datetime.now() - timedelta(days=7)
+    
+    cursor.execute('''
+        SELECT tc.user_id, u.full_name, tc.question_1, tc.question_2, tc.question_3, tc.squad
+        FROM time_capsules tc
+        JOIN users u ON tc.user_id = u.user_id
+        WHERE tc.created_date <= ?
+    ''', (week_ago,))
+    
+    capsules = cursor.fetchall()
+    
+    for user_id, full_name, q1, q2, q3, squad in capsules:
+        # Получаем случайные ответы других участников отряда
+        cursor.execute('''
+            SELECT question_1, question_2, question_3 
+            FROM time_capsules 
+            WHERE squad = ? AND user_id != ? 
+            ORDER BY RANDOM() LIMIT 2
+        ''', (squad, user_id))
+        
+        other_responses = cursor.fetchall()
+        
+        # Формируем сообщение
+        message = f"""Капсула времени из прошлого ⏳
+
+Привет, {full_name}!
+
+Неделю назад ты был на лидерских сборах. Помнишь? Ты и твой безумный отряд.
+
+Как и обещал, возвращаю тебе твои мысли. Сохрани это письмо❤️
+
+ТВОИ ОТВЕТЫ:
+
+· Яркий момент: «{q1 or 'Нет ответа'}»
+· Открытие: «{q2 or 'Нет ответа'}»
+· Что забрал с собой: «{q3 or 'Нет ответа'}»
+
+А ВОТ ЧТО ВИДЕЛИ ДРУГИЕ (анонимно):
+"""
+        
+        for i, (oq1, oq2, oq3) in enumerate(other_responses, 1):
+            if oq1:
+                message += f"\n· «{oq1}»"
+            if oq2:
+                message += f"\n· «{oq2}»"
+            if oq3:
+                message += f"\n· «{oq3}»"
+        
+        if not other_responses:
+            message += "\n· Пока нет ответов от других участников"
+        
+        message += "\n\nТвой отряд был космос! 🚀"
+        
+        try:
+            bot.send_message(user_id, message)    
+        except Exception as e:
+            print(f"Не удалось отправить капсулу пользователю {user_id}: {e}")
+    
+    conn.close()
 # Вспомогательные функции
 def get_squad_chat_link(squad_number):
     links = {
@@ -341,6 +594,21 @@ def run_bot():
                 time.sleep(10)
             
             print("🔄 Перезапускаю бота...")
+            
+# Планировщик для отправки капсул времени
+def start_capsule_scheduler():
+    """Запускает планировщик для ежедневной проверки капсул"""
+    while True:
+        try:
+            now = datetime.now()
+            # Проверяем капсулы каждый день в 10:00
+            if now.hour == 10 and now.minute == 0:
+                send_time_capsules()
+                print(f"✅ Проверка капсул выполнена в {now}")
+            time.sleep(60)  # Проверяем каждую минуту
+        except Exception as e:
+            print(f"❌ Ошибка в планировщике капсул: {e}")
+            time.sleep(300)
 
 if __name__== "__main__":
     # Запускаем само-пинг в отдельном потоке
@@ -354,9 +622,16 @@ if __name__== "__main__":
     web_thread.daemon = True
     web_thread.start()
     print("🌐 Веб-сервер запущен на порту 8080")
+
+    # Запускаем планировщик капсул времени в отдельном потоке
+    capsule_thread = threading.Thread(target=start_capsule_scheduler)
+    capsule_thread.daemon = True
+    capsule_thread.start()
+    print("⏰ Планировщик капсул времени запущен")
     
     # Запускаем бота с автоматическим восстановлением
     run_bot()
+
 
 
 
