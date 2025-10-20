@@ -618,6 +618,11 @@ def start_capsule_scheduler():
             time.sleep(300)
 
 if __name__== "__main__":
+    init_db()  # инициализация базы ДО запуска потоков
+    # Запускаются все вспомогательные потоки
+    # И потом запускается бот
+    run_bot()  # в основном потоке
+    
     # Запускаем само-пинг в отдельном потоке
     ping_thread = threading.Thread(target=keep_alive)
     ping_thread.daemon = True
@@ -638,6 +643,7 @@ if __name__== "__main__":
     
     # Запускаем бота с автоматическим восстановлением
     run_bot()
+
 
 
 
